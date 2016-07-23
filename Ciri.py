@@ -8,7 +8,7 @@ from multiprocessing import Pool
 import shelve
 import argparse
 import zipfile
-
+import wget
 """
 ========================================================================================================================
                         Ciri, short for Cirilla Fiona Elen Riannon, is an xkcd comic downloader.
@@ -132,13 +132,8 @@ def update():
 
 
 def archive(url):
-    r = requests.get(url)
 
-    with open('XKCD_Comics.zip', 'wb') as f:
-        for c in r.iter_content(chunk_size=1024):
-            f.write(c)
-        f.close()
-
+    wget.download(url)
     comic = zipfile.ZipFile('XKCD_Comics.zip')
     comic.extractall()
     comic.close()
@@ -167,7 +162,7 @@ def main():
     setup(path)
 
     if result.archive:
-        print("Downloading archive...\n")
+        print("Downloading archive(~100MB)...\nThis may take some time.")
         try:
             archive(url)
             print("Done")
