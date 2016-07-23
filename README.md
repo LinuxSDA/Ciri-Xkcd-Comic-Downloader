@@ -18,12 +18,12 @@
 - Downloads the xkcd comic archive directly from third party server. Last updated on july 22, 2016. No need to unnecessarily crowd the XKCD servers for all comics.
 
 
-```Ciri.py --update		# After downloading archive```
+```Ciri.py --update	                             	# After downloading archive```
 
 - Updates the xkcd comics folder anytime in near future.
 
 
-```Ciri.py --update		# If archive not downloaded```
+```Ciri.py --update	                            	# If archive not downloaded```
 
 - Downloads all comics from xkcd. Program uses multiple processes for faster downloading.
 
