@@ -7,7 +7,7 @@
 ### Things to know:
   - Works on both python 2 and 3
   - Depends on BeautifulSoup, wget and Requests.
-  - Tested on linux. Should work on windows.
+  - Tested on linux. ~~Should work on windows.~~ Works on Windows
   - Path is current directory. 
 
 
