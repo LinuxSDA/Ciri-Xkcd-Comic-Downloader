@@ -61,7 +61,7 @@ def downloader(num):
         else:
             raise TypeError('This raise exception exists only because of comic #1525')
 
-        save = open(str(num) + ': ' + title + imglink[-4:], 'wb')  # Conflict happens here, title used as filename.
+        save = open(str(num) + '- ' + title + imglink[-4:], 'wb')  # Conflict happens here, title used as filename.
         save.write(image.content)                                   # Writes image data to file.
         save.close()
 
@@ -176,7 +176,7 @@ def main():
 
     elif result.select:
         print("Starting download...\n")
-        pool = Pool(processes=3)       # spawns only 4 processes for parallel download.
+        pool = Pool(processes=3)       # spawns only 3 processes for parallel download.
         pool.map(downloader, [x for x in result.select if x > 0])
         pool.close()
         print("Done.")
@@ -184,7 +184,7 @@ def main():
     elif result.bounds:
         if result.bounds[1] > result.bounds[0] > 0:
             print("Starting download...\n")
-            pool = Pool(processes=8)       # spawns only 16 processes for parallel download.
+            pool = Pool(processes=8)       # spawns only 8 processes for parallel download.
             pool.map(downloader, range(result.bounds[0], result.bounds[1]+1))
             pool.close()
             print("Done.")
