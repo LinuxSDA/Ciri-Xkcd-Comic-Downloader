@@ -1,6 +1,7 @@
 #! /usr/bin/env python
 from __future__ import print_function
 import requests
+from bs4 import BeautifulSoup
 import os
 import time
 from multiprocessing import Pool
@@ -22,47 +23,24 @@ def setup(path):
     os.chdir(path)
 
 
-def comic_url(num=''):
-    url = 'https://xkcd.com/'
-    if num:
-        url += '{}/'.format(num)
-    url += 'info.0.json'
-    return url
-
-
-def comic_info(num=''):
-    """Returns None if comic doesn't exist.
-
-    The returned dict has these attributes:
-    title: title of comic
-    safe_title: title without html tags, if title has any
-    num (int): number of comic
-    img: direct url of image
-    month: month the comic was released
-    day: day the comic was released
-    year: year the comic was released
-    alt: alt/hover text of the image
-    transcript: transcript of the comic
-    link: image's hyperlink
-    news: ? url of associated news article ?
-    """
-    req = requests.get(comic_url(num))
-    if req.status_code == 200:
-        return req.json()
-    return None
-
-
 def fetch():
     if not os.path.isfile('.UpdateLog'):
-        with shelve.open('.UpdateLog') as log:
-            log['Complete'] = None                              # None, True , False. True = No errors during download.
-            log['Record'] = 1                                   # Starts from comic #1
+        log = shelve.open('.UpdateLog')                         # Default values to new log file.
+        log['Complete'] = None                                  # None, True , False. True = No errors during download.
+        log['Record'] = 1                                       # Starts from comic #1
+        log.close()
 
-    with shelve.open('.UpdateLog') as log:
-        status = log['Complete']                                # Retrieve values from log file.
-        start = log['Record']
+    log = shelve.open('.UpdateLog')
+    status = log['Complete']                                    # Retrieve values from log file.
+    start = log['Record']
+    log.close()
 
-    end = comic_info()['num']
+    lastpage = requests.get('https://xkcd.com/')
+    soup = BeautifulSoup(lastpage.content, 'html.parser')
+
+    "fetch second last comic number. Easier to get."
+    end = soup.find('a', attrs={'accesskey': 'p'})['href']      # 'end' variable has format '/comic_number/'
+    end = int(end[1:-1]) + 2                                    # 'end' used in range function, +2 instead of +1.
 
     return status, start, end
 
@@ -70,25 +48,30 @@ def fetch():
 def downloader(num):
 
     try:
-        info = comic_info(num)
-        if info is None:
-            raise AttributeError
+        page = requests.get('https://xkcd.com/' + str(num))
+        soup = BeautifulSoup(page.content, 'html.parser')
 
-        title = info['safe_title']
-        title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in comic title coflicts with linux path format.
+        title = soup.find(id='ctitle').text                     # Get comic title.
+        title = title.replace('/', '.')                         # '/' in comic title coflicts with linux path format.
 
-        image_ext = info['img'][-4:]
-        image = requests.get(info['img'])
+        imglink = soup.find(id='comic').img['src']              # Get image link.
 
-        image_file = '{}- {}{}'.format(info['num'], title, image_ext)
+        if imglink.startswith('//'):
+            image = requests.get('https:' + imglink)            # Downloads image.
+        else:
+            raise TypeError('This raise exception exists only because of comic #1525')
 
-        with open(image_file, 'wb') as save:
-            save.write(image.content)                                     # Writes image data to file.
+        save = open(str(num) + '- ' + title + imglink[-4:], 'wb')  # Conflict happens here, title used as filename.
+        save.write(image.content)                                   # Writes image data to file.
+        save.close()
 
     except requests.exceptions.ConnectionError:
         print("Request denied by XKCD. Resuming in 2 secs..")
         time.sleep(2)
         downloader(num)
+
+    except TypeError:                                           # Comic 1350, 1416, 1525, 1608, 1663 are not images.
+        print("Comic #", num, ": Unable to download - Comic type not image.")
 
     except AttributeError:
         if num == 404:                                          # No comic at xkcd.com/404
@@ -103,9 +86,10 @@ def downloader(num):
 
 
 def updatelog(pseudo_end):
-    with shelve.open('.UpdateLog') as log:
-        log['Complete'] = True
-        log['Record'] = pseudo_end
+    log = shelve.open('.UpdateLog')
+    log['Complete'] = True
+    log['Record'] = pseudo_end
+    log.close()
     print("\nLogs updated at Comic #", pseudo_end - 1, "\n")
 
 
@@ -117,8 +101,9 @@ def update():
     if status is False:                                             # Give warning if there was error last time.
         print("Program ended unexpectedly during last attempt. Some of the downloaded data will be overwritten.")
 
-    with shelve.open('.UpdateLog') as log:
-        log['Complete'] = False                                     # Remains false if program exits unexpectedly.
+    log = shelve.open('.UpdateLog')
+    log['Complete'] = False                                        # Remains false if program exits unexpectedly.
+    log.close()
 
     pack = 100                                                      # will download in pack of 100 comics at a time.
     loop = True
@@ -134,9 +119,10 @@ def update():
             pseudo_end = end
             loop = False
 
-        # "I/O bound process can have more processes than cores. Don't worry!
-        with Pool(processes=32) as pool:       # spawns 32 processes for parallel download.
-            pool.map(downloader, range(start, pseudo_end))
+        "I/O bound process can have more processes than cores. Don't worry!"
+        pool = Pool(processes=32)       # spawns 32 processes for parallel download.
+        pool.map(downloader, range(start, pseudo_end))
+        pool.close()
 
         updatelog(pseudo_end)
 
@@ -148,8 +134,9 @@ def update():
 def archive(url):
 
     wget.download(url)
-    with zipfile.ZipFile('XKCD_Comics.zip') as archive:
-        archive.extractall()
+    comic = zipfile.ZipFile('XKCD_Comics.zip')
+    comic.extractall()
+    comic.close()
 
     os.unlink('XKCD_Comics.zip')
 
@@ -189,15 +176,17 @@ def main():
 
     elif result.select:
         print("Starting download...\n")
-        with Pool(processes=3) as pool:       # spawns only 3 processes for parallel download.
-            pool.map(downloader, [x for x in result.select if x > 0])
+        pool = Pool(processes=3)       # spawns only 3 processes for parallel download.
+        pool.map(downloader, [x for x in result.select if x > 0])
+        pool.close()
         print("Done.")
 
     elif result.bounds:
         if result.bounds[1] > result.bounds[0] > 0:
             print("Starting download...\n")
-            with Pool(processes=8) as pool:       # spawns only 8 processes for parallel download.
-                pool.map(downloader, range(result.bounds[0], result.bounds[1]+1))
+            pool = Pool(processes=8)       # spawns only 8 processes for parallel download.
+            pool.map(downloader, range(result.bounds[0], result.bounds[1]+1))
+            pool.close()
             print("Done.")
 
         else:
