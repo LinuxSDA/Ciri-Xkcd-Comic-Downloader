@@ -146,9 +146,8 @@ def update():
 def archive(url):
 
     wget.download(url)
-    comic = zipfile.ZipFile('XKCD_Comics.zip')
-    comic.extractall()
-    comic.close()
+    with zipfile.ZipFile('XKCD_Comics.zip') as archive:
+        archive.extractall()
 
     os.unlink('XKCD_Comics.zip')
 
