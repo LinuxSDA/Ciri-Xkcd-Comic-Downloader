@@ -71,6 +71,8 @@ def downloader(num):
 
     try:
         info = comic_info(num)
+        if info is None:
+            raise AttributeError
 
         title = info['safe_title']
         title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in comic title coflicts with linux path format.
