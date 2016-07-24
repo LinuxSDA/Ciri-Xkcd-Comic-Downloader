@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 from __future__ import print_function
 import requests
-from bs4 import BeautifulSoup
 import os
 import time
 from multiprocessing import Pool
@@ -23,6 +22,35 @@ def setup(path):
     os.chdir(path)
 
 
+def comic_url(num=''):
+    url = 'https://xkcd.com/'
+    if num:
+        url += '{}/'.format(num)
+    url += 'info.0.json'
+    return url
+
+
+def comic_info(num=''):
+    """Returns None if comic doesn't exist.
+    The returned dict has these attributes:
+    title: title of comic
+    safe_title: title without html tags, if title has any
+    num (int): number of comic
+    img: direct url of image
+    month: month the comic was released
+    day: day the comic was released
+    year: year the comic was released
+    alt: alt/hover text of the image
+    transcript: transcript of the comic
+    link: image's hyperlink
+    news: ? url of associated news article ?
+    """
+    req = requests.get(comic_url(num))
+    if req.status_code == 200:
+        return req.json()
+    return None
+
+
 def fetch():
     if not os.path.isfile('.UpdateLog'):
         log = shelve.open('.UpdateLog')                         # Default values to new log file.
@@ -35,43 +63,32 @@ def fetch():
     start = log['Record']
     log.close()
 
-    lastpage = requests.get('https://xkcd.com/')
-    soup = BeautifulSoup(lastpage.content, 'html.parser')
-
-    "fetch second last comic number. Easier to get."
-    end = soup.find('a', attrs={'accesskey': 'p'})['href']      # 'end' variable has format '/comic_number/'
-    end = int(end[1:-1]) + 2                                    # 'end' used in range function, +2 instead of +1.
+    end = comic_info()['num']
 
     return status, start, end
 
 
 def downloader(num):
-
     try:
-        page = requests.get('https://xkcd.com/' + str(num))
-        soup = BeautifulSoup(page.content, 'html.parser')
+        info = comic_info(num)
+        if info is None:
+            raise AttributeError
 
-        title = soup.find(id='ctitle').text                     # Get comic title.
-        title = title.replace('/', '.')                         # '/' in comic title coflicts with linux path format.
+        title = info['safe_title']
+        title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in comic title coflicts with linux path format.
 
-        imglink = soup.find(id='comic').img['src']              # Get image link.
+        image_ext = info['img'][-4:]
+        image = requests.get(info['img'])
 
-        if imglink.startswith('//'):
-            image = requests.get('https:' + imglink)            # Downloads image.
-        else:
-            raise TypeError('This raise exception exists only because of comic #1525')
+        image_file = '{}- {}{}'.format(info['num'], title, image_ext)
 
-        save = open(str(num) + '- ' + title + imglink[-4:], 'wb')  # Conflict happens here, title used as filename.
-        save.write(image.content)                                   # Writes image data to file.
-        save.close()
+        with open(image_file, 'wb') as save:
+            save.write(image.content)                                     # Writes image data to file.
 
     except requests.exceptions.ConnectionError:
         print("Request denied by XKCD. Resuming in 2 secs..")
         time.sleep(2)
         downloader(num)
-
-    except TypeError:                                           # Comic 1350, 1416, 1525, 1608, 1663 are not images.
-        print("Comic #", num, ": Unable to download - Comic type not image.")
 
     except AttributeError:
         if num == 404:                                          # No comic at xkcd.com/404
@@ -132,11 +149,9 @@ def update():
 
 
 def archive(url):
-
     wget.download(url)
-    comic = zipfile.ZipFile('XKCD_Comics.zip')
-    comic.extractall()
-    comic.close()
+    with zipfile.ZipFile('XKCD_Comics.zip') as arc:
+        arc.extractall()
 
     os.unlink('XKCD_Comics.zip')
 
