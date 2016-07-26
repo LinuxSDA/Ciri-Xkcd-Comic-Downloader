@@ -8,6 +8,7 @@ import shelve
 import argparse
 import zipfile
 import wget
+import threading
 """
 ========================================================================================================================
                         Ciri, short for Cirilla Fiona Elen Riannon, is an xkcd comic downloader.
@@ -36,7 +37,7 @@ def comic_info(num=''):
     The returned dict has these attributes:
     title: title of comic
     safe_title: title without html tags, if title has any
-    :parameter num: number of comic (int)
+    :parameter num: number of comic
     img: direct url of image
     month: month the comic was released
     day: day the comic was released
@@ -75,7 +76,7 @@ def downloader(num):
         if info is None:
             raise AttributeError
 
-        title = info['safe_title']
+        title = info['safe_title'].encode('ascii', 'ignore')
         title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in title coflicts with path format.
 
         image_ext = info['img'][-4:]
@@ -131,9 +132,9 @@ def update():
     log['Complete'] = False                                        # Remains false if program exits unexpectedly.
     log.close()
 
-    pack = 100                                                      # will download in pack of 100 comics at a time.
+    pack = 50                                                       # 50 Threads.
     loop = True
-
+    check = False
     print("Starting from: ", start, "\n")
 
     while loop:
@@ -145,12 +146,20 @@ def update():
             pseudo_end = end
             loop = False
 
-        "I/O bound process can have more processes than cores. Don't worry!"
-        pool = Pool(processes=32)       # spawns 32 processes for parallel download.
-        pool.map(downloader, range(start, pseudo_end))
-        pool.close()
+        threads = []
 
-        updatelog(pseudo_end)
+        for x in range(start, pseudo_end):
+            thread = threading.Thread(target=downloader, args=(x,))
+            threads.append(thread)
+            thread.start()
+
+        for thread in threads:
+            thread.join()
+
+        if check:
+            updatelog(pseudo_end)                           # will update logs after every 100 comics.
+        else:
+            check = not check
 
         start = pseudo_end
 
@@ -200,17 +209,41 @@ def main():
 
     elif result.select:
         print("Starting download...\n")
-        pool = Pool(processes=3)       # spawns only 3 processes for parallel download.
-        pool.map(downloader, [x for x in result.select if x > 0])
-        pool.close()
+        threads = []                       # a list of all the Thread objects
+        thread = threading.Thread(target=downloader, args=(x for x in result.select if x > 0))
+        threads.append(thread)
+        thread.start()
+
+        for thread in threads:
+            thread.join()
         print("Done.")
 
     elif result.bounds:
         if result.bounds[1] > result.bounds[0] > 0:
             print("Starting download...\n")
-            pool = Pool(processes=8)       # spawns only 8 processes for parallel download.
-            pool.map(downloader, range(result.bounds[0], result.bounds[1]+1))
-            pool.close()
+            threads = []                       # a list of all the Thread objects
+
+            start = result.bounds[0]
+            end = result.bounds[1] + 1
+            loop = True
+
+            while loop:
+                pseudo_end = start + 8
+
+                if pseudo_end > end:                 # 8 threads at a time.
+                    pseudo_end = end
+                    loop = False
+
+                for x in range(start, pseudo_end):
+                    thread = threading.Thread(target=downloader, args=(x,))
+                    threads.append(thread)
+                    thread.start()
+
+                for thread in threads:
+                    thread.join()
+
+                start = pseudo_end
+
             print("Done.")
 
         else:
