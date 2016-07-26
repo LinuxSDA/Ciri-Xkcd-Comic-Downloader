@@ -101,9 +101,12 @@ def downloader(num):
         if num == 404:                                          # No comic at xkcd.com/404
             pass
         else:
-            print("Comic #", num, ": Connection problem. Retrying in 1 sec..")   # Happens sometime.
-            time.sleep(1)
-            downloader(num)
+            end = comic_info()['num']
+            
+            if num <= end:
+                print("Comic #", num, ": Connection problem. Retrying in 1 sec..")   # Happens sometime.
+                time.sleep(1)
+                downloader(num)
 
     except TypeError:
         print("Comic #", num, " is not downloadable.")
