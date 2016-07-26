@@ -37,7 +37,7 @@ def comic_info(num=''):
     The returned dict has these attributes:
     title: title of comic
     safe_title: title without html tags, if title has any
-    :parameter num: number of comic
+    :parameter num: number of comic(int)
     img: direct url of image
     month: month the comic was released
     day: day the comic was released
@@ -210,9 +210,12 @@ def main():
     elif result.select:
         print("Starting download...\n")
         threads = []                       # a list of all the Thread objects
-        thread = threading.Thread(target=downloader, args=(x for x in result.select if x > 0))
-        threads.append(thread)
-        thread.start()
+
+        for x in result.select:
+            if x > 0:
+                thread = threading.Thread(target=downloader, args=(x,))
+                threads.append(thread)
+                thread.start()
 
         for thread in threads:
             thread.join()
@@ -228,9 +231,9 @@ def main():
             loop = True
 
             while loop:
-                pseudo_end = start + 8
+                pseudo_end = start + 10
 
-                if pseudo_end > end:                 # 8 threads at a time.
+                if pseudo_end > end:                 # 10 threads at a time.
                     pseudo_end = end
                     loop = False
 
