@@ -31,11 +31,12 @@ def comic_url(num=''):
 
 
 def comic_info(num=''):
-    """Returns None if comic doesn't exist.
+    """
+    Returns None if comic doesn't exist.
     The returned dict has these attributes:
     title: title of comic
     safe_title: title without html tags, if title has any
-    num (int): number of comic
+    :parameter num: number of comic
     img: direct url of image
     month: month the comic was released
     day: day the comic was released
@@ -75,10 +76,15 @@ def downloader(num):
             raise AttributeError
 
         title = info['safe_title']
-        title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in comic title coflicts with linux path format.
+        title = title.replace('/', '.').replace('\\', '').replace('?', '')  # '/' in title coflicts with path format.
 
         image_ext = info['img'][-4:]
-        image = requests.get(info['img'])
+        img_link = info['img']
+
+        if img_link == "http://imgs.xkcd.com/comics/":
+            raise TypeError
+
+        image = requests.get(img_link)
 
         image_file = '{}- {}{}'.format(info['num'], title, image_ext)
 
@@ -97,6 +103,9 @@ def downloader(num):
             print("Comic #", num, ": Connection problem. Retrying in 1 sec..")   # Happens sometime.
             time.sleep(1)
             downloader(num)
+
+    except TypeError:
+        print("Comic #", num, " is not downloadable.")
 
     except Exception as e:
         print("Unexpected Error: ", e, "\n Occurred at Comic #", num, ". Report bug!")
@@ -216,4 +225,4 @@ if __name__ == '__main__':
         main()
     except KeyboardInterrupt:
         print("Process interrupted.")
-        exit()
+exit()
