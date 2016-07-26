@@ -36,7 +36,7 @@ def comic_info(num=''):
     The returned dict has these attributes:
     title: title of comic
     safe_title: title without html tags, if title has any
-    :parameter num: number of comic
+    :parameter num: number of comic (int)
     img: direct url of image
     month: month the comic was released
     day: day the comic was released
@@ -64,7 +64,7 @@ def fetch():
     start = log['Record']
     log.close()
 
-    end = comic_info()['num']
+    end = comic_info()['num'] + 1
 
     return status, start, end
 
