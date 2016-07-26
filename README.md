@@ -10,6 +10,11 @@
   - Tested on linux. ~~Should work on windows.~~ Works on Windows
   - Path is current directory. 
 
+### Install:
+`pip install requests`
+
+`pip install wget`
+
 
 ### Usage: (cd to downloaded path and execute script)
 
