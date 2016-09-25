@@ -45,4 +45,4 @@
 ![Relevent XKCD](https://imgs.xkcd.com/comics/code_quality_2.png)
 
 
-###If you don't wish to run script then you can download pre-fetched archive from [here](http://www.insomniacprogrammer.hol.es/xkcd/XKCD_Comics.zip). Updated on july 22, 2016.
+###If you don't wish to run script then you can download pre-fetched archive from [here](http://www.insomniacprogrammer.hol.es/xkcd/XKCD_Comics.zip). Updated on September 22, 2016.
